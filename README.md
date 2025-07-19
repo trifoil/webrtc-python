@@ -29,7 +29,7 @@ pip install aiortc av numpy PyGObject Pillow
 ```sh
 gst-launch-1.0 --version
 
-gst-launch-1.0 v4l2src device=/dev/video1 ! videoconvert ! autovideosink
+gst-launch-1.0 v4l2src device=/dev/video0 ! videoconvert ! autovideosink
 ``` 
 
 ## How It Works
@@ -76,3 +76,20 @@ This project demonstrates real-time video streaming using WebRTC in Python, with
 ## Sources
 
 * https://medium.com/@malieknath135/building-a-real-time-streaming-application-using-webrtc-in-python-d34694604fc4
+
+## Important Note for GStreamer Usage
+
+When using GStreamer with Python (PyGObject), you **must** start a `GLib.MainLoop` in its own thread. This is required for GStreamer to process signals and events, such as delivering frames to your application. Without this, your pipeline may not emit frames or work correctly.
+
+Example:
+
+```python
+import threading
+from gi.repository import GLib
+
+main_loop = GLib.MainLoop()
+main_loop_thread = threading.Thread(target=main_loop.run, daemon=True)
+main_loop_thread.start()
+```
+
+Make sure to start this main loop before creating and running your GStreamer pipeline.

@@ -90,7 +90,7 @@ async def setup_webrtc_and_run(ip_address, port, camera_id):
 async def main():
     ip_address = "10.10.1.100" # Ip Address of Remote Server/Machine
     port = 9999
-    camera_id = 1  # Change this to the appropriate camera ID
+    camera_id = 0  # Change this to the appropriate camera ID
     await setup_webrtc_and_run(ip_address, port, camera_id)
 
 if __name__ == "__main__":
