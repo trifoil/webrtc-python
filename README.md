@@ -1,5 +1,7 @@
 # webrtc-python
- wertc with python for proof of concept
+ webrtc with python for proof of concept
+
+## Prerequisites
 
 ```sh
 python -m venv venv
