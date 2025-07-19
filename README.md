@@ -73,6 +73,27 @@ This project demonstrates real-time video streaming using WebRTC in Python, with
 - If running both scripts on the same machine, you can use `127.0.0.1` as the IP address.
 - If you want to use a different camera, change the `camera_id` in `sender.py` (default is `0`).
 
+## Performance Comparison
+
+### Latency Results
+
+Based on testing on an Intel Core i5-7600K system:
+
+- **GStreamer (software encoding)**: ~57ms average frame processing time
+- **OpenCV**: ~75ms average frame processing time
+- **GStreamer advantage**: 24% faster than OpenCV even without hardware acceleration
+
+### Hardware Acceleration Status
+
+The current implementation falls back to software encoding due to missing Intel Quick Sync and VA-API plugins. While hardware acceleration would provide additional performance benefits, the software pipeline already demonstrates superior performance compared to OpenCV.
+
+### Performance Notes
+
+- Both implementations achieve real-time performance (<100ms per frame)
+- GStreamer's optimized pipeline architecture provides better performance even without hardware acceleration
+- Frame processing includes WebRTC encoding overhead
+- Performance may vary based on system specifications and network conditions
+
 ## Sources
 
 * https://medium.com/@malieknath135/building-a-real-time-streaming-application-using-webrtc-in-python-d34694604fc4
