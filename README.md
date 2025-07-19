@@ -7,8 +7,11 @@ source venv/bin/activate
 ```
 
 ```sh 
+sudo dnf install -y python3-pip python3-devel gcc gcc-c++ make
+sudo dnf install -y qt5-devel qt5-qtbase-devel qt5-qtbase-gui
+sudo dnf install -y opencv-devel ffmpeg-devel
 pip install aiortc opencv-python
-pip install matplotlib
+pip install matplotlib aiortc av numpy PyQt5 opencv-python 
 ```
 
 ## How It Works
