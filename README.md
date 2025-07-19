@@ -76,6 +76,7 @@ This project demonstrates real-time video streaming using WebRTC in Python, with
 ## Sources
 
 * https://medium.com/@malieknath135/building-a-real-time-streaming-application-using-webrtc-in-python-d34694604fc4
+* https://gist.github.com/velovix/8cbb9bb7fe86a08fb5aa7909b2950259
 
 ## Important Note for GStreamer Usage
 
