@@ -89,16 +89,36 @@ class VideoReceiver:
     def __init__(self, video_window):
         self.track = None
         self.video_window = video_window
+        self.running = True
+    
+    def stop(self):
+        """Stop the video receiver"""
+        self.running = False
+        if self.track:
+            self.track.stop()
 
     async def handle_track(self, track):
         print("Inside handle track")
         self.track = track
         frame_count = 0
-        while True:
+        consecutive_errors = 0
+        max_consecutive_errors = 10
+        
+        while self.running:
             try:
                 print("Waiting for frame...")
                 frame = await asyncio.wait_for(track.recv(), timeout=5.0)
+                
+                if frame is None:
+                    print("Received None frame, continuing...")
+                    consecutive_errors += 1
+                    if consecutive_errors >= max_consecutive_errors:
+                        print("Too many consecutive None frames, exiting...")
+                        break
+                    continue
+                
                 frame_count += 1
+                consecutive_errors = 0  # Reset error counter on successful frame
                 print(f"Received frame {frame_count}")
                 
                 if isinstance(frame, VideoFrame):
@@ -108,6 +128,10 @@ class VideoReceiver:
                     print(f"Frame type: numpy array")
                 else:
                     print(f"Unexpected frame type: {type(frame)}")
+                    consecutive_errors += 1
+                    if consecutive_errors >= max_consecutive_errors:
+                        print("Too many unexpected frame types, exiting...")
+                        break
                     continue
               
                 # Add timestamp to the frame
@@ -125,9 +149,21 @@ class VideoReceiver:
     
             except asyncio.TimeoutError:
                 print("Timeout waiting for frame, continuing...")
+                consecutive_errors += 1
+                if consecutive_errors >= max_consecutive_errors:
+                    print("Too many timeouts, exiting...")
+                    break
+            except ConnectionError as e:
+                print(f"Connection error in handle_track: {str(e)}")
+                break
             except Exception as e:
                 print(f"Error in handle_track: {str(e)}")
-                if "Connection" in str(e):
+                consecutive_errors += 1
+                if consecutive_errors >= max_consecutive_errors:
+                    print("Too many consecutive errors, exiting...")
+                    break
+                if "Connection" in str(e) or "closed" in str(e).lower():
+                    print("Connection appears to be closed, exiting...")
                     break
         print("Exiting handle_track")
 
@@ -149,6 +185,11 @@ async def run(pc, signaling, video_window):
         print(f"Connection state is {pc.connectionState}")
         if pc.connectionState == "connected":
             print("WebRTC connection established successfully")
+        elif pc.connectionState == "failed" or pc.connectionState == "closed":
+            print(f"WebRTC connection {pc.connectionState}, stopping receiver...")
+            # Signal to stop the video receiver
+            if hasattr(video_receiver, 'track') and video_receiver.track:
+                video_receiver.track.stop()
 
     print("Waiting for offer from sender...")
     offer = await signaling.receive()
@@ -169,9 +210,15 @@ async def run(pc, signaling, video_window):
         await asyncio.sleep(0.1)
 
     print("Connection established, waiting for frames...")
-    await asyncio.sleep(100)  # Wait for 100 seconds to receive frames
-
-    print("Closing connection")
+    
+    # Wait for connection to end or timeout
+    try:
+        while pc.connectionState == "connected":
+            await asyncio.sleep(1)
+    except KeyboardInterrupt:
+        print("Received keyboard interrupt, shutting down...")
+    finally:
+        print("Closing connection")
 
 def run_webrtc_async(video_window):
     """Run the WebRTC receiver in a separate thread"""

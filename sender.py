@@ -1,5 +1,6 @@
 import asyncio
 import cv2
+import numpy as np
 from aiortc import RTCPeerConnection, RTCSessionDescription, VideoStreamTrack
 from aiortc.contrib.signaling import TcpSocketSignaling
 from av import VideoFrame
@@ -13,25 +14,43 @@ class CustomVideoStreamTrack(VideoStreamTrack):
         self.frame_count = 0
 
     async def recv(self):
-        self.frame_count += 1
-        print(f"Sending frame {self.frame_count}")
-        ret, frame = self.cap.read()
-        if not ret:
-            print("Failed to read frame from camera")
-            return None
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        video_frame = VideoFrame.from_ndarray(frame, format="rgb24")
-        video_frame.pts = self.frame_count
-        video_frame.time_base = fractions.Fraction(1, 30)  # Use fractions for time_base
-        # Add timestamp to the frame
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]  # Current time with milliseconds
-        cv2.putText(frame, timestamp, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
-
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        video_frame = VideoFrame.from_ndarray(frame, format="rgb24")
-        video_frame.pts = self.frame_count
-        video_frame.time_base = fractions.Fraction(1, 30)  # Use fractions for time_base
-        return video_frame
+        try:
+            self.frame_count += 1
+            print(f"Sending frame {self.frame_count}")
+            ret, frame = self.cap.read()
+            if not ret:
+                print("Failed to read frame from camera")
+                # Return a black frame instead of None to keep the stream alive
+                black_frame = np.zeros((480, 640, 3), dtype=np.uint8)
+                video_frame = VideoFrame.from_ndarray(black_frame, format="rgb24")
+                video_frame.pts = self.frame_count
+                video_frame.time_base = fractions.Fraction(1, 30)
+                return video_frame
+            
+            # Convert BGR to RGB
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            
+            # Add timestamp to the frame
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+            cv2.putText(frame, timestamp, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+            
+            # Ensure frame is uint8
+            frame = frame.astype(np.uint8)
+            
+            # Create video frame
+            video_frame = VideoFrame.from_ndarray(frame, format="rgb24")
+            video_frame.pts = self.frame_count
+            video_frame.time_base = fractions.Fraction(1, 30)
+            return video_frame
+            
+        except Exception as e:
+            print(f"Error in recv: {str(e)}")
+            # Return a black frame to keep the stream alive
+            black_frame = np.zeros((480, 640, 3), dtype=np.uint8)
+            video_frame = VideoFrame.from_ndarray(black_frame, format="rgb24")
+            video_frame.pts = self.frame_count
+            video_frame.time_base = fractions.Fraction(1, 30)
+            return video_frame
 
 async def setup_webrtc_and_run(ip_address, port, camera_id):
     signaling = TcpSocketSignaling(ip_address, port)
