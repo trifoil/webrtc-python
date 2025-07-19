@@ -12,9 +12,21 @@ source venv/bin/activate
 sudo dnf install -y python3-pip python3-devel gcc gcc-c++ make
 sudo dnf install -y qt5-devel qt5-qtbase-devel qt5-qtbase-gui
 sudo dnf install -y opencv-devel ffmpeg-devel
+
+sudo dnf install -y gstreamer1-devel gstreamer1-plugins-base-devel gstreamer1-plugins-good gstreamer1-plugins-bad-free gstreamer1-plugins-ugly-free gstreamer1-libav gstreamer1-plugins-base gstreamer1-plugins-good-extras gstreamer1-plugins-bad-free-extras gstreamer1-plugins-ugly-free-extras gstreamer1-plugins-ffmpeg v4l-utils python3-gobject python3-gobject-devel python3-pip python3-devel gcc gcc-c++ make
+
 pip install aiortc opencv-python
 pip install matplotlib aiortc av numpy PyQt5 opencv-python 
+pip install aiortc av numpy PyGObject Pillow 
 ```
+
+## Testing camera 
+
+```sh
+gst-launch-1.0 --version
+
+gst-launch-1.0 v4l2src device=/dev/video1 ! videoconvert ! autovideosink
+``` 
 
 ## How It Works
 
