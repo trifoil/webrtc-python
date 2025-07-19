@@ -15,6 +15,10 @@ sudo dnf install -y opencv-devel ffmpeg-devel
 
 sudo dnf install -y gstreamer1-devel gstreamer1-plugins-base-devel gstreamer1-plugins-good gstreamer1-plugins-bad-free gstreamer1-plugins-ugly-free gstreamer1-libav gstreamer1-plugins-base gstreamer1-plugins-good-extras gstreamer1-plugins-bad-free-extras gstreamer1-plugins-ugly-free-extras gstreamer1-plugins-ffmpeg v4l-utils python3-gobject python3-gobject-devel python3-pip python3-devel gcc gcc-c++ make
 
+sudo dnf install gobject-introspection-devel cairo-devel pkg-config python3-devel
+
+pip install gbulb
+
 pip install aiortc opencv-python
 pip install matplotlib aiortc av numpy PyQt5 opencv-python 
 pip install aiortc av numpy PyGObject Pillow 
@@ -69,3 +73,6 @@ This project demonstrates real-time video streaming using WebRTC in Python, with
 - If running both scripts on the same machine, you can use `127.0.0.1` as the IP address.
 - If you want to use a different camera, change the `camera_id` in `sender.py` (default is `0`).
 
+## Sources
+
+* https://medium.com/@malieknath135/building-a-real-time-streaming-application-using-webrtc-in-python-d34694604fc4
