@@ -7,6 +7,7 @@ from aiortc.contrib.signaling import TcpSocketSignaling
 from av import VideoFrame
 import fractions
 from datetime import datetime
+import time
 
 import gi
 
@@ -32,9 +33,51 @@ class CustomVideoStreamTrack(VideoStreamTrack):
         self.frame_count = 0
         self.sample = None
         self.loop = asyncio.get_event_loop()
-        self.pipeline = Gst.parse_launch(
-            f"v4l2src device=/dev/video{camera_id} ! videoconvert ! video/x-raw,format=RGB,width=640,height=480,framerate=30/1 ! appsink name=sink emit-signals=true max-buffers=1 drop=true"
-        )
+        self.total_processing_time = 0
+        self.frame_times = []
+        
+        # Try Intel hardware acceleration first, fallback to software if not available
+        try:
+            # Test if qsvh264enc is available
+            test_pipeline = Gst.parse_launch("fakesrc ! qsvh264enc ! fakesink")
+            test_pipeline.set_state(Gst.State.NULL)
+            del test_pipeline
+            
+            # Use Intel Quick Sync hardware acceleration
+            self.pipeline = Gst.parse_launch(
+                f"v4l2src device=/dev/video{camera_id} ! "
+                f"video/x-raw,format=NV12,width=640,height=480,framerate=30/1 ! "
+                f"qsvh264enc bitrate=1000 ! "  # Intel hardware H.264 encoding
+                f"appsink name=sink emit-signals=true max-buffers=1 drop=true"
+            )
+            print("Using Intel Quick Sync hardware acceleration")
+        except Exception as e:
+            print(f"Intel Quick Sync not available: {e}")
+            try:
+                # Try VA-API hardware acceleration
+                test_pipeline = Gst.parse_launch("fakesrc ! vaapih264enc ! fakesink")
+                test_pipeline.set_state(Gst.State.NULL)
+                del test_pipeline
+                
+                self.pipeline = Gst.parse_launch(
+                    f"v4l2src device=/dev/video{camera_id} ! "
+                    f"videoconvert ! "
+                    f"vaapipostproc ! "  # VA-API post-processing
+                    f"vaapih264enc ! "   # VA-API H.264 encoding
+                    f"appsink name=sink emit-signals=true max-buffers=1 drop=true"
+                )
+                print("Using VA-API hardware acceleration")
+            except Exception as e2:
+                print(f"VA-API not available: {e2}")
+                # Fallback to software encoding
+                self.pipeline = Gst.parse_launch(
+                    f"v4l2src device=/dev/video{camera_id} ! "
+                    f"videoconvert ! "
+                    f"video/x-raw,format=RGB,width=640,height=480,framerate=30/1 ! "
+                    f"appsink name=sink emit-signals=true max-buffers=1 drop=true"
+                )
+                print("Using software encoding (no hardware acceleration)")
+        
         self.appsink = self.pipeline.get_by_name('sink')
         self.appsink.connect('new-sample', self.on_new_sample)
         self.latest_frame = None
@@ -81,6 +124,7 @@ class CustomVideoStreamTrack(VideoStreamTrack):
             buf.unmap(map_info)
 
     async def recv(self):
+        start_time = time.time()
         try:
             self.frame_count += 1
             print(f"Sending frame {self.frame_count}")
@@ -108,6 +152,18 @@ class CustomVideoStreamTrack(VideoStreamTrack):
             video_frame = VideoFrame.from_ndarray(frame, format="rgb24")
             video_frame.pts = self.frame_count
             video_frame.time_base = fractions.Fraction(1, 30)
+            
+            # Calculate and store timing
+            processing_time = (time.time() - start_time) * 1000  # Convert to milliseconds
+            self.frame_times.append(processing_time)
+            self.total_processing_time += processing_time
+            
+            # Print performance stats every 30 frames
+            if self.frame_count % 30 == 0:
+                avg_time = self.total_processing_time / self.frame_count
+                recent_avg = sum(self.frame_times[-30:]) / min(30, len(self.frame_times))
+                print(f"Performance: Avg={avg_time:.2f}ms, Recent={recent_avg:.2f}ms, Current={processing_time:.2f}ms")
+            
             return video_frame
         except Exception as e:
             print(f"Error in recv: {str(e)}")
